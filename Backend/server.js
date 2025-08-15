@@ -1,6 +1,7 @@
 import express from "express"; 
 import { getImagesFromBBox } from "./src/services/mapillaryService.js"; 
 import cors from "cors"; 
+import db from "./configs/db.js";
 
 const app = express();
 
@@ -43,6 +44,23 @@ app.get("/api/random-image", async (req, res) => {
     res.status(500).json({ success: false, error: error.message }); 
   }
 });
+
+const startServer = async () => {
+  try {
+    await db.authenticate();
+    console.log("✅ Conexão com banco estabelecida com sucesso!");
+    
+    app.listen(3001, () => { 
+      console.log("🚀 Server is running on port 3001");
+      console.log("http://localhost:3001");
+    });
+  } catch (error) {
+    console.error("❌ Erro ao conectar com banco:", error);
+    process.exit(1);
+  }
+};
+
+startServer();
 
 //TODOS OS PARAMETROS DA IMAGEM:
 // id: string
