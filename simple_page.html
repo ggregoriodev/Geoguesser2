@@ -1,0 +1,572 @@
+<!-- index.html -->
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Node Projects Manager</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f8fafc;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        .container {
+            text-align: center;
+            max-width: 600px;
+            width: 100%;
+        }
+
+        .title {
+            font-size: 2rem;
+            color: #1f2937;
+            margin-bottom: 2rem;
+            font-weight: 600;
+        }
+
+        .buttons-container {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 2rem;
+        }
+
+        .btn {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            position: relative;
+        }
+
+        .btn:hover {
+            background: #2563eb;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: #6b7280;
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: #4b5563;
+        }
+
+        .btn-stop {
+            background: #ef4444;
+        }
+
+        .btn-stop:hover:not(:disabled) {
+            background: #dc2626;
+        }
+
+        .status-container {
+            background: white;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+
+        .status-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 1rem;
+        }
+
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .status-item:last-child {
+            border-bottom: none;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 0.5rem;
+        }
+
+        .status-running {
+            background-color: #10b981;
+        }
+
+        .status-stopped {
+            background-color: #ef4444;
+        }
+
+        .status-loading {
+            background-color: #f59e0b;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .logs-container {
+            background: #1f2937;
+            color: #f9fafb;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 0.875rem;
+            max-height: 300px;
+            overflow-y: auto;
+            text-align: left;
+        }
+
+        .log-line {
+            margin-bottom: 0.25rem;
+        }
+
+        @media (max-width: 480px) {
+            .buttons-container {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .btn {
+                width: 100%;
+                max-width: 300px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="title">Node Projects Manager</h1>
+        
+        <div class="status-container">
+            <div class="status-title">Status dos Projetos</div>
+            <div class="status-item">
+                <div>
+                    <span class="status-indicator status-stopped" id="status-pasta1"></span>
+                    Pasta1 (Mapillary)
+                </div>
+                <span id="port-pasta1">-</span>
+            </div>
+            <div class="status-item">
+                <div>
+                    <span class="status-indicator status-stopped" id="status-pasta2"></span>
+                    Pasta2 (GMaps)
+                </div>
+                <span id="port-pasta2">-</span>
+            </div>
+        </div>
+
+        <div class="buttons-container">
+            <button class="btn" id="btn-pasta1" onclick="toggleProject('pasta1')">
+                Iniciar Mapillary
+            </button>
+            <button class="btn btn-secondary" id="btn-pasta2" onclick="toggleProject('pasta2')">
+                Iniciar GMaps
+            </button>
+            <button class="btn btn-stop" onclick="stopAllProjects()">
+                Parar Todos
+            </button>
+        </div>
+
+        <div class="status-container">
+            <div class="status-title">Logs</div>
+            <div class="logs-container" id="logs">
+                <div class="log-line">Aguardando comandos...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const projectStatus = {
+            pasta1: { running: false, port: null },
+            pasta2: { running: false, port: null }
+        };
+
+        async function toggleProject(projectName) {
+            const isRunning = projectStatus[projectName].running;
+            
+            if (isRunning) {
+                await stopProject(projectName);
+            } else {
+                await startProject(projectName);
+            }
+        }
+
+        async function startProject(projectName) {
+            const btn = document.getElementById(`btn-${projectName}`);
+            const status = document.getElementById(`status-${projectName}`);
+            
+            btn.disabled = true;
+            btn.textContent = 'Iniciando...';
+            status.className = 'status-indicator status-loading';
+            
+            addLog(`Iniciando ${projectName}...`);
+
+            try {
+                const response = await fetch('/api/start', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ project: projectName })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    projectStatus[projectName].running = true;
+                    projectStatus[projectName].port = result.port;
+                    
+                    status.className = 'status-indicator status-running';
+                    btn.textContent = `Parar ${projectName === 'pasta1' ? 'Mapillary' : 'GMaps'}`;
+                    btn.disabled = false;
+                    
+                    document.getElementById(`port-pasta2`).textContent = result.port || '-';
+                    
+                    addLog(`✅ ${projectName} iniciado na porta ${result.port}`);
+                } else {
+                    throw new Error(result.error);
+                }
+            } catch (error) {
+                status.className = 'status-indicator status-stopped';
+                btn.textContent = `Iniciar ${projectName === 'pasta1' ? 'Mapillary' : 'GMaps'}`;
+                btn.disabled = false;
+                
+                addLog(`❌ Erro ao iniciar ${projectName}: ${error.message}`);
+            }
+        }
+
+        async function stopProject(projectName) {
+            const btn = document.getElementById(`btn-${projectName}`);
+            const status = document.getElementById(`status-${projectName}`);
+            
+            btn.disabled = true;
+            btn.textContent = 'Parando...';
+            status.className = 'status-indicator status-loading';
+            
+            addLog(`Parando ${projectName}...`);
+
+            try {
+                const response = await fetch('/api/stop', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ project: projectName })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    projectStatus[projectName].running = false;
+                    projectStatus[projectName].port = null;
+                    
+                    status.className = 'status-indicator status-stopped';
+                    btn.textContent = `Iniciar ${projectName === 'pasta1' ? 'Mapillary' : 'GMaps'}`;
+                    btn.disabled = false;
+                    
+                    document.getElementById(`port-${projectName}`).textContent = '-';
+                    
+                    addLog(`⏹️ ${projectName} parado`);
+                } else {
+                    throw new Error(result.error);
+                }
+            } catch (error) {
+                btn.disabled = false;
+                addLog(`❌ Erro ao parar ${projectName}: ${error.message}`);
+            }
+        }
+
+        async function stopAllProjects() {
+            addLog('Parando todos os projetos...');
+            
+            const promises = Object.keys(projectStatus)
+                .filter(project => projectStatus[project].running)
+                .map(project => stopProject(project));
+                
+            await Promise.all(promises);
+            addLog('✅ Todos os projetos foram parados');
+        }
+
+        function addLog(message) {
+            const logs = document.getElementById('logs');
+            const timestamp = new Date().toLocaleTimeString();
+            const logLine = document.createElement('div');
+            logLine.className = 'log-line';
+            logLine.textContent = `[${timestamp}] ${message}`;
+            
+            logs.appendChild(logLine);
+            logs.scrollTop = logs.scrollHeight;
+            
+            // Manter apenas as últimas 50 linhas
+            const lines = logs.children;
+            if (lines.length > 50) {
+                logs.removeChild(lines[0]);
+            }
+        }
+
+        // Verificar status inicial dos projetos
+        async function checkInitialStatus() {
+            try {
+                const response = await fetch('/api/status');
+                const status = await response.json();
+                
+                Object.keys(status).forEach(projectName => {
+                    const project = status[projectName];
+                    projectStatus[projectName] = project;
+                    
+                    const statusEl = document.getElementById(`status-${projectName}`);
+                    const btnEl = document.getElementById(`btn-${projectName}`);
+                    const portEl = document.getElementById(`port-${projectName}`);
+                    
+                    if (project.running) {
+                        statusEl.className = 'status-indicator status-running';
+                        btnEl.textContent = `Parar ${projectName === 'pasta1' ? 'Mapillary' : 'GMaps'}`;
+                        portEl.textContent = project.port || '-';
+                    } else {
+                        statusEl.className = 'status-indicator status-stopped';
+                        btnEl.textContent = `Iniciar ${projectName === 'pasta1' ? 'Mapillary' : 'GMaps'}`;
+                        portEl.textContent = '-';
+                    }
+                });
+            } catch (error) {
+                addLog(`❌ Erro ao verificar status: ${error.message}`);
+            }
+        }
+
+        // Verificar status ao carregar a página
+        document.addEventListener('DOMContentLoaded', checkInitialStatus);
+    </script>
+</body>
+</html>
+
+<!-- ============================================ -->
+<!-- server.js - Servidor Node.js Principal -->
+<!-- ============================================ -->
+
+/*
+// server.js
+const express = require('express');
+const { spawn, exec } = require('child_process');
+const path = require('path');
+const fs = require('fs');
+
+const app = express();
+const PORT = 3000;
+
+// Armazenar processos ativos
+const activeProcesses = {
+    pasta1: null,
+    pasta2: null
+};
+
+// Middleware
+app.use(express.json());
+app.use(express.static('.'));
+
+// Configurações dos projetos
+const projectConfigs = {
+    pasta1: {
+        name: 'Mapillary Project',
+        directory: './pasta1',
+        command: 'npm run dev',
+        port: 3001
+    },
+    pasta2: {
+        name: 'GMaps Project', 
+        directory: './pasta2',
+        command: 'npm run dev',
+        port: 3002
+    }
+};
+
+// Rota para servir o index.html
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+// API para iniciar projeto
+app.post('/api/start', async (req, res) => {
+    const { project } = req.body;
+    
+    if (!projectConfigs[project]) {
+        return res.json({ success: false, error: 'Projeto não encontrado' });
+    }
+
+    if (activeProcesses[project]) {
+        return res.json({ success: false, error: 'Projeto já está executando' });
+    }
+
+    try {
+        const config = projectConfigs[project];
+        
+        // Verificar se a pasta existe
+        if (!fs.existsSync(config.directory)) {
+            return res.json({ success: false, error: `Diretório ${config.directory} não encontrado` });
+        }
+
+        // Verificar se package.json existe
+        const packagePath = path.join(config.directory, 'package.json');
+        if (!fs.existsSync(packagePath)) {
+            return res.json({ success: false, error: 'package.json não encontrado no diretório' });
+        }
+
+        console.log(`Iniciando ${project} em ${config.directory}`);
+        
+        // Executar npm run dev no diretório do projeto
+        const childProcess = spawn('npm', ['run', 'dev'], {
+            cwd: config.directory,
+            stdio: ['pipe', 'pipe', 'pipe'],
+            shell: true
+        });
+
+        activeProcesses[project] = childProcess;
+
+        // Capturar saída do processo
+        childProcess.stdout.on('data', (data) => {
+            console.log(`[${project}] ${data}`);
+        });
+
+        childProcess.stderr.on('data', (data) => {
+            console.error(`[${project}] ${data}`);
+        });
+
+        childProcess.on('exit', (code) => {
+            console.log(`[${project}] Processo finalizado com código ${code}`);
+            activeProcesses[project] = null;
+        });
+
+        res.json({ 
+            success: true, 
+            message: `${config.name} iniciado com sucesso`,
+            port: config.port
+        });
+
+    } catch (error) {
+        console.error(`Erro ao iniciar ${project}:`, error);
+        res.json({ success: false, error: error.message });
+    }
+});
+
+// API para parar projeto
+app.post('/api/stop', (req, res) => {
+    const { project } = req.body;
+    
+    if (!activeProcesses[project]) {
+        return res.json({ success: false, error: 'Projeto não está executando' });
+    }
+
+    try {
+        const process = activeProcesses[project];
+        process.kill('SIGTERM');
+        activeProcesses[project] = null;
+        
+        res.json({ 
+            success: true, 
+            message: `${projectConfigs[project].name} parado com sucesso` 
+        });
+    } catch (error) {
+        console.error(`Erro ao parar ${project}:`, error);
+        res.json({ success: false, error: error.message });
+    }
+});
+
+// API para verificar status
+app.get('/api/status', (req, res) => {
+    const status = {};
+    
+    Object.keys(projectConfigs).forEach(project => {
+        status[project] = {
+            running: activeProcesses[project] !== null,
+            port: activeProcesses[project] ? projectConfigs[project].port : null,
+            name: projectConfigs[project].name
+        };
+    });
+    
+    res.json(status);
+});
+
+// Cleanup ao fechar servidor
+process.on('SIGINT', () => {
+    console.log('\nParando todos os processos...');
+    
+    Object.keys(activeProcesses).forEach(project => {
+        if (activeProcesses[project]) {
+            activeProcesses[project].kill('SIGTERM');
+        }
+    });
+    
+    process.exit(0);
+});
+
+app.listen(PORT, () => {
+    console.log(`🚀 Servidor executando em http://localhost:${PORT}`);
+    console.log('📁 Estrutura esperada:');
+    console.log('   ├── index.html');
+    console.log('   ├── server.js');
+    console.log('   ├── pasta1/');
+    console.log('   └── pasta2/');
+});
+*/
+
+<!-- ============================================ -->
+<!-- package.json - Dependências do Servidor -->
+<!-- ============================================ -->
+
+/*
+{
+  "name": "node-projects-manager",
+  "version": "1.0.0",
+  "description": "Gerenciador de projetos Node.js via interface web",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}
+*/
