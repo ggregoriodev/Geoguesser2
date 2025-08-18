@@ -18,9 +18,9 @@ app.use(express.json());
 async function syncDatabase() {
   try {
     await db.sync({ force: false }); // force: false para não recriar tabelas existentes
-    console.log("✅ Banco de dados sincronizado e tabelas criadas!");
+    console.log(" Banco de dados sincronizado e tabelas criadas!");
   } catch (error) {
-    console.error("❌ Erro ao sincronizar banco de dados:", error);
+    console.error(" Erro ao sincronizar banco de dados:", error);
   }
 }
 
@@ -29,7 +29,7 @@ async function startServer() {
   await syncDatabase();
 
   app.listen(3001, () => {
-    console.log("🚀 Server is running on port 3001");
+    console.log(" Server is running on port 3001");
     console.log("http://localhost:3001");
   });
 }
